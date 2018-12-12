@@ -1,0 +1,8 @@
+name = Product Status Update
+
+description = Checks vendor site for discontinued/out-of-stock products and updates inventory accordingly
+
+core = 7.x
+
+dependencies[] = commerce_product
+configure = admin/config/content/product-status-update
