@@ -1,0 +1,105 @@
+<?php
+
+/**
+* Implements hook_schema().
+*/
+ 
+function product_status_update_schema() {
+	 $schema = array();
+	 
+	 $schema['product_status_update'] = array (
+		'description' => 'Table for product status updates from vendor',
+		'fields' => array(
+			'product_id' => array(
+				'description' => 'The primary identifier for a product, used internally only.',
+				'type' => 'int',
+				'unsigned' => TRUE,
+				'not null' => TRUE,
+			),
+			'sku' => array(
+				'description' => 'The unique, human-readable identifier for a product.',
+				'type' => 'varchar',
+				'length' => 255,
+				'not null' => TRUE,
+			),
+			'out_of_stock' => array(
+				'description' => 'Boolean indicating whether product is currently out of stock on vendor site and has been unpublished',
+				'type' => 'int',
+				'size' => 'tiny',
+				'not null' => TRUE,
+				'default' => 0,
+			),
+			'discontinued' => array(
+				'description' => 'Boolean indicating whether product has been discontinued on vendor site and has been marked for deletion',
+				'type' => 'int',
+				'size' => 'tiny',
+				'not null' => TRUE,
+				'default' => 0,
+			),
+			'processed' => array(
+				'description' => 'Boolean indicating whether product has been checked for updates in current cycle',
+				'type' => 'int',
+				'size' => 'tiny',
+				'not null' => TRUE,
+				'default' => 0,
+			),
+		),
+		'primary key' => array('product_id'),
+		'indexes' => array(
+			'sku' => array('sku'),
+		),
+	);
+	
+	return $schema;
+}
+
+/**
+ * Implements hook_install().
+ */
+
+function product_status_update_install() {
+	variable_set('psu_batch_size', '100');
+	variable_set('psu_batches_per_run', '5');
+	
+	$num_products = db_query('SELECT COUNT(DISTINCT product_id) FROM {commerce_product}')->fetchField();
+	$cur_id = db_query('SELECT MIN(product_id) FROM {commerce_product}')->fetchField() - 1;
+	$max_id = db_query('SELECT MAX(product_id) FROM {commerce_product}')->fetchField();
+	
+	while ($cur_id < $max_id) {
+		$products = db_select('commerce_product', 'cp')
+			->fields('cp', array('product_id', 'sku'))
+			->condition('product_id', $cur_id, '>')
+			->range(0, 50)
+			->orderBy('product_id', 'ASC')
+			->execute()->fetchAllAssoc('product_id', PDO::FETCH_ASSOC);
+			
+		foreach ($products as $product) {
+			$pid = db_insert('product_status_update')
+				->fields(array(
+					'product_id' => $product['product_id'],
+					'sku' => $product['sku'],
+					'out_of_stock' => 0,
+					'discontinued' => 0,
+					'processed' => 0,
+					)
+				)
+				->execute();
+				
+			$cur_id = $product['product_id']; 
+		}
+	}
+	
+	return t('Module successfully installed');
+}
+
+		
+/**
+* Implements hook_uninstall().
+*/
+function product_status_update_uninstall() {
+	variable_del('psu_batch_size');
+	variable_del('psu_batches_per_run');
+}
+		
+		
+		
