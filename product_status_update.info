@@ -5,4 +5,4 @@ description = Checks vendor site for discontinued/out-of-stock products and upda
 core = 7.x
 
 dependencies[] = commerce_product
-configure = admin/config/content/product-status-update
+configure = admin/config/content/product_status_update
