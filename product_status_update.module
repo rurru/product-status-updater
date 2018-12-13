@@ -172,6 +172,7 @@ function process_product_batch() {
 		else {
 			$updated = db_update('product_status_update')
 				->fields(array(
+					'out_of_stock' => 0,
 					'processed' => 1,
 					)
 				)
