@@ -1,0 +1,188 @@
+<?php
+
+/**
+ * Implements hook_help().
+ *
+ * Displays help and module information.
+ *
+ * @param path 
+ *   Which path of the site we're using to display help
+ * @param arg 
+ *   Array that holds the current path as returned from arg() function
+ */
+function product_status_update_help($path, $arg) {
+  switch ($path) {
+    case "admin/help#product_status_update":
+      return t("Check Status of Products on Vendor Site and Update Accordingly"); 
+      break; 
+  }
+}
+
+/**
+* Implements hook_menu().
+*/
+
+function product_status_update_menu() {
+	
+	$items = array();
+	
+	$items['admin/config/content/product_status_update'] = array(
+		'title' => 'Product Status Update',
+		'description' => 'Configuration and Administration for Product Status Update Module',
+		'page callback' => 'drupal_get_form',
+		'page arguments' => array('product_status_update_form'),
+		'access arguments' => array('access administration pages'),
+		'type' => MENU_NORMAL_ITEM,
+	);
+	
+	return $items;
+}
+
+
+/**
+* Page callback: Product Status Update settings
+*
+* @see product_status_update_menu()
+*/
+
+function product_status_update_form($form, &$form_state) {
+	
+	$form['batch_size'] = array(
+		'#type' => 'textfield',
+		'#title' => t('Batch Size'),
+		'#default_value' => variable_get('psu_batch_size', 100),
+		'#size' => 3,
+		'#maxlength' => 3,
+		'#description' => t('Number of products to search per batch'),
+		'#required' => TRUE,
+	);
+	
+	$form['number_of_batches'] = array(
+		'#type' => 'textfield',
+		'#title' => t('Batches to Run per cron'),
+		'#default_value' => variable_get('psu_batches_per_run', 5),
+		'#size' => 2,
+		'#maxlength' => 2,
+		'#description' => t('Number of batches to process per cron run'),
+		'#required' => TRUE,
+	);
+	
+	$form['run_now'] = array(
+		'#type' => checkbox,
+		'#title' => t('Run Test Batch'),
+	);
+	
+	$form['submit'] = array(
+    '#type' => 'submit',
+    '#value' => 'Save Configuration',
+  );
+		
+	return $form;
+}
+
+/**
+* Validate form data--make sure the user has entered a positive number
+*/
+
+function product_status_update_form_validate($form, &$form_state) {
+	$size = $form_state['values']['batch_size'];
+	$batches = $form_state['values']['number_of_batches'];
+	
+	if (!is_numeric($size) || $size <= 0) {
+		form_set_error('batch_size', t('Please enter a positive number for batch size'));
+	}
+	if (!is_numeric($batches) || $batches <= 0) {
+		form_set_error('number_of_batches', t('Please enter a positive number for batches per run'));
+	}
+}
+
+
+/**
+* Add a submit handler/function to the config form that will run
+* a test batch if specified
+*/
+
+function product_status_update_form_submit($form, &$form_state) {
+	
+	$size = $form_state['values']['batch_size'];
+	$batches = $form_state['values']['number_of_batches'];
+
+	variable_set('psu_batch_size', $size);
+	variable_set('psu_batches_per_run', $batches);
+	
+	if ($form_state['values']['run_now']) {
+		process_product_batch();
+	}
+	
+	drupal_set_message(t('Settings have been updated'));
+}
+
+
+/**
+* Custom content function.
+*
+* Process one batch of products--look up SKU numbers on vendor site
+* and set database flags accordingly
+*
+* @return
+*   Success or failure status of run
+*/
+function process_product_batch() {
+	
+	$url = "https://qgold.com//ProductListings/SearchProducts";
+	$user_agent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/70.0.3538.77 Safari/537.36";
+	
+	$limit = variable_get('psu_batch_size', 100);
+	$result = db_query_range("SELECT sku FROM {product_status_update} WHERE processed = 0", 0, $limit);
+	
+	foreach ($result as $product) {
+		$post_string = 'searchTerms='.$product->sku;
+		
+		$connection = curl_init($url);
+		curl_setopt($connection, CURLOPT_CONNECTTIMEOUT, 30);
+		curl_setopt($connection, CURLOPT_USERAGENT, $user_agent);
+		curl_setopt($connection, CURLOPT_RETURNTRANSFER, true);
+		curl_setopt($connection, CURLOPT_SSL_VERIFYPEER, false);
+		curl_setopt($connection, CURLOPT_FOLLOWLOCATION, 1);
+		curl_setopt($connection, CURLOPT_POSTFIELDS, $post_string);
+		
+		$result = curl_exec($connection);
+		curl_close($connection);
+		
+		if (strpos ($result, '"IsDiscontinued":true') !== false) {
+			$updated = db_update('product_status_update')
+				->fields(array(
+					'discontinued' => 1,
+					'processed' => 1,
+					)
+				)
+				->condition('sku', $product->sku)
+				->execute();
+		}
+		else if (strpos ($result, '"InStock":0') !== false) {
+			$updated = db_update('product_status_update')
+				->fields(array(
+					'out_of_stock' => 1,
+					'processed' => 1,
+					)
+				)
+				->condition('sku', $product->sku)
+				->execute();
+		}
+		else {
+			$updated = db_update('product_status_update')
+				->fields(array(
+					'processed' => 1,
+					)
+				)
+				->condition('sku', $product->sku)
+				->execute();
+		}
+	}
+	
+	drupal_set_message(t('Test batch run successfully'));
+}
+
+
+
+
