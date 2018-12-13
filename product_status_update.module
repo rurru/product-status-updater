@@ -35,6 +35,52 @@ function product_status_update_menu() {
 		'type' => MENU_NORMAL_ITEM,
 	);
 	
+	$items['admin/config/content/product_status_update/main'] = array(
+		'title' => t('Settings'),
+		'type' => MENU_DEFAULT_LOCAL_TASK,
+		'weight' => 10,
+	);
+	
+	$items['admin/config/content/product_status_update/discontinued'] = array(
+		'title' => t('Discontinued'),
+		'description' => t('View/Delete Discontinued Items');
+		'page callback' => 'drupal_get_form',
+		'page arguments' => array('product_status_update_discontinued'),
+		'access arguments' => array('access administration pages'),
+		'type' => MENU_LOCAL_TASK,
+		'weight' => 20,
+	);
+	
+	$items['admin/config/content/product_status_update/outofstock'] = array(
+		'title' => t('Out of Stock'),
+		'description' => t('View/Disable Out-of-Stock Items');
+		'page callback' => 'drupal_get_form',
+		'page arguments' => array('product_status_update_outofstock'),
+		'access arguments' => array('access administration pages'),
+		'type' => MENU_LOCAL_TASK,
+		'weight' => 30,
+	);
+	
+	$items['admin/config/content/product_status_update/restocked'] = array(
+		'title' => t('Restocked'),
+		'description' => t('View/Enable Items that are Back in Stock');
+		'page callback' => 'drupal_get_form',
+		'page arguments' => array('product_status_update_restocked'),
+		'access arguments' => array('access administration pages'),
+		'type' => MENU_LOCAL_TASK,
+		'weight' => 40,
+	);
+	
+	$items['admin/config/content/product_status_update/errorlog'] = array(
+		'title' => t('Error Log'),
+		'description' => t('Items that could not be processed');
+		'page callback' => 'drupal_get_form',
+		'page arguments' => array('product_status_update_error_log'),
+		'access arguments' => array('access administration pages'),
+		'type' => MENU_LOCAL_TASK,
+		'weight' => 50,
+	);
+	
 	return $items;
 }
 
