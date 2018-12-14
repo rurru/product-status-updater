@@ -179,9 +179,16 @@ function product_status_update_outofstock($form, &$form_state) {
 		$title = db_select('commerce_product', 'cp')
 			->fields('cp', array('title'))
 			->condition('product_id', $product['product_id'])
-			->execute()->fetchField();
-		
-		$product_list .= $product['sku'].' '.$title.'<br />';
+			->execute()->fetchField();	
+			
+		$status = db_select('commerce_product', 'cp')
+			->fields('cp', array('status'))
+			->condition('product_id', $product['product_id'])
+			->execute()->fetchField();	
+
+		if ($status) {
+			$product_list .= $product['sku'].' '.$title.'<br />';
+		}
 	}
 	
 	$product_list .= '<br />';
@@ -235,6 +242,31 @@ function product_status_update_form_submit($form, &$form_state) {
 	}
 	
 	drupal_set_message(t('Settings have been updated'));
+}
+
+/**
+* Add a submit handler/function to the Discontinued tab
+* Deletes products marked as discontinued
+*/
+
+function product_status_update_discontinued_submit($form, &$form_state) {
+	
+	$number_deleted = 0;
+	
+	$discontinued_products = db_select('product_status_update', 'psu')
+		->fields('psu', array('product_id', 'sku'))
+		->condition('discontinued', 1)
+		->execute()->fetchAllAssoc('product_id', PDO::FETCH_ASSOC);
+		
+	foreach ($discontinued_products as $product) {
+		commerce_product_delete($product['product_id']);
+		db_delete('product_status_update')
+				->condition('product_id', $product['product_id'])
+				->execute();
+		$number_deleted++;
+	}
+	
+	drupal_set_message(t($number_deleted.' items deleted.'));
 }
 
 
@@ -294,7 +326,7 @@ function process_product_batch() {
 				->condition('sku', $product->sku)
 				->execute();
 		}
-		else if (strpos($result, 'product_detail' !== false) {
+		else if (strpos($result, 'product_detail') !== false) {
 			$updated = db_update('product_status_update')
 				->fields(array(
 					'out_of_stock' => 0,
