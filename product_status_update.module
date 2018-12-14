@@ -43,7 +43,7 @@ function product_status_update_menu() {
 	
 	$items['admin/config/content/product_status_update/discontinued'] = array(
 		'title' => t('Discontinued'),
-		'description' => t('View/Delete Discontinued Items');
+		'description' => t('View/Delete Discontinued Items'),
 		'page callback' => 'drupal_get_form',
 		'page arguments' => array('product_status_update_discontinued'),
 		'access arguments' => array('access administration pages'),
@@ -53,7 +53,7 @@ function product_status_update_menu() {
 	
 	$items['admin/config/content/product_status_update/outofstock'] = array(
 		'title' => t('Out of Stock'),
-		'description' => t('View/Disable Out-of-Stock Items');
+		'description' => t('View/Disable Out-of-Stock Items'),
 		'page callback' => 'drupal_get_form',
 		'page arguments' => array('product_status_update_outofstock'),
 		'access arguments' => array('access administration pages'),
@@ -63,7 +63,7 @@ function product_status_update_menu() {
 	
 	$items['admin/config/content/product_status_update/restocked'] = array(
 		'title' => t('Restocked'),
-		'description' => t('View/Enable Items that are Back in Stock');
+		'description' => t('View/Enable Items that are Back in Stock'),
 		'page callback' => 'drupal_get_form',
 		'page arguments' => array('product_status_update_restocked'),
 		'access arguments' => array('access administration pages'),
@@ -73,7 +73,7 @@ function product_status_update_menu() {
 	
 	$items['admin/config/content/product_status_update/errorlog'] = array(
 		'title' => t('Error Log'),
-		'description' => t('Items that could not be processed');
+		'description' => t('Items that could not be processed'),
 		'page callback' => 'drupal_get_form',
 		'page arguments' => array('product_status_update_error_log'),
 		'access arguments' => array('access administration pages'),
@@ -119,15 +119,89 @@ function product_status_update_form($form, &$form_state) {
 	);
 	
 	$form['submit'] = array(
-    '#type' => 'submit',
-    '#value' => 'Save Configuration',
+		'#type' => 'submit',
+		'#value' => 'Save Configuration',
   );
 		
 	return $form;
 }
 
 /**
-* Validate form data--make sure the user has entered a positive number
+* Page callback: Product Status Update settings
+*
+* @see product_status_update_menu()
+*/
+
+function product_status_update_discontinued($form, &$form_state) {
+	
+	$product_list = '';
+	
+	$discontinued_products = db_select('product_status_update', 'psu')
+		->fields('psu', array('product_id', 'sku'))
+		->condition('discontinued', 1)
+		->execute()->fetchAllAssoc('product_id', PDO::FETCH_ASSOC);
+		
+	foreach($discontinued_products as $product) {		
+		$title = db_select('commerce_product', 'cp')
+			->fields('cp', array('title'))
+			->condition('product_id', $product['product_id'])
+			->execute()->fetchField();
+		
+		$product_list .= $product['sku'].' '.$title.'<br />';
+	}
+	
+	$product_list .= '<br />';
+	
+	$form['report'] = array(
+		'#type' => 'item',
+		'#title' => 'List of Discontinued Items',
+		'#suffix' => $product_list,
+	);
+	
+	$form['submit'] = array(
+		'#type' => 'submit',
+		'#value' => 'Delete All',
+	);
+	
+	return $form;
+}
+
+function product_status_update_outofstock($form, &$form_state) {
+	
+	$product_list = '';
+	
+	$discontinued_products = db_select('product_status_update', 'psu')
+		->fields('psu', array('product_id', 'sku'))
+		->condition('out_of_stock', 1)
+		->execute()->fetchAllAssoc('product_id', PDO::FETCH_ASSOC);
+		
+	foreach($discontinued_products as $product) {		
+		$title = db_select('commerce_product', 'cp')
+			->fields('cp', array('title'))
+			->condition('product_id', $product['product_id'])
+			->execute()->fetchField();
+		
+		$product_list .= $product['sku'].' '.$title.'<br />';
+	}
+	
+	$product_list .= '<br />';
+	
+	$form['report'] = array(
+		'#type' => 'item',
+		'#title' => 'List of Out-Of-Stock Items',
+		'#suffix' => $product_list,
+	);
+	
+	$form['submit'] = array(
+		'#type' => 'submit',
+		'#value' => 'Disable All',
+	);
+	
+	return $form;
+}
+
+/**
+* Validate Settings form data--make sure the user has entered a positive number
 */
 
 function product_status_update_form_validate($form, &$form_state) {
