@@ -114,7 +114,7 @@ function product_status_update_form($form, &$form_state) {
 	);
 	
 	$form['run_now'] = array(
-		'#type' => checkbox,
+		'#type' => 'checkbox',
 		'#title' => t('Run Test Batch'),
 	);
 	
@@ -170,25 +170,16 @@ function product_status_update_outofstock($form, &$form_state) {
 	
 	$product_list = '';
 	
-	$discontinued_products = db_select('product_status_update', 'psu')
-		->fields('psu', array('product_id', 'sku'))
-		->condition('out_of_stock', 1)
-		->execute()->fetchAllAssoc('product_id', PDO::FETCH_ASSOC);
+	$outofstock_products = db_query('SELECT * FROM {product_status_update} JOIN {commerce_product} ON product_status_update.product_id = commerce_product.product_id WHERE out_of_stock = 1 AND status = 1')->fetchAllAssoc('product_id', PDO::FETCH_ASSOC);
 		
-	foreach($discontinued_products as $product) {		
+	foreach($outofstock_products as $product) {		
 		$title = db_select('commerce_product', 'cp')
 			->fields('cp', array('title'))
 			->condition('product_id', $product['product_id'])
 			->execute()->fetchField();	
 			
-		$status = db_select('commerce_product', 'cp')
-			->fields('cp', array('status'))
-			->condition('product_id', $product['product_id'])
-			->execute()->fetchField();	
-
-		if ($status) {
-			$product_list .= $product['sku'].' '.$title.'<br />';
-		}
+		$product_list .= $product['sku'].' '.$title.'<br />';
+		
 	}
 	
 	$product_list .= '<br />';
@@ -202,6 +193,38 @@ function product_status_update_outofstock($form, &$form_state) {
 	$form['submit'] = array(
 		'#type' => 'submit',
 		'#value' => 'Disable All',
+	);
+	
+	return $form;
+}
+
+function product_status_update_restocked($form, &$form_state) {
+	
+	$product_list = '';
+	
+	$restocked_products = db_query('SELECT * FROM {product_status_update} JOIN {commerce_product} ON product_status_update.product_id = commerce_product.product_id WHERE out_of_stock = 0 AND status = 0 AND processed = 1')->fetchAllAssoc('product_id', PDO::FETCH_ASSOC);
+		
+	foreach($restocked_products as $product) {		
+		$title = db_select('commerce_product', 'cp')
+			->fields('cp', array('title'))
+			->condition('product_id', $product['product_id'])
+			->execute()->fetchField();	
+			
+		$product_list .= $product['sku'].' '.$title.'<br />';
+		
+	}
+	
+	$product_list .= '<br />';
+	
+	$form['report'] = array(
+		'#type' => 'item',
+		'#title' => 'List of Items that are Back in Stock',
+		'#suffix' => $product_list,
+	);
+	
+	$form['submit'] = array(
+		'#type' => 'submit',
+		'#value' => 'Enable All',
 	);
 	
 	return $form;
@@ -267,6 +290,53 @@ function product_status_update_discontinued_submit($form, &$form_state) {
 	}
 	
 	drupal_set_message(t($number_deleted.' items deleted.'));
+}
+
+/**
+* Add a submit handler/function to the Out of Stock tab
+* Disables products marked as out of stock
+*/
+
+function product_status_update_outofstock_submit($form, &$form_state) {
+	
+	$number_disabled = 0;
+	
+	$outofstock_products = db_query('SELECT * FROM {product_status_update} JOIN {commerce_product} ON product_status_update.product_id = commerce_product.product_id WHERE out_of_stock = 1 AND status = 1')->fetchAllAssoc('product_id', PDO::FETCH_ASSOC);
+		
+	foreach ($outofstock_products as $product) {
+		db_update('commerce_product')
+			->fields(array(
+					'status' => 0,
+					)
+			)
+			->condition('product_id', $product['product_id'])
+			->execute();
+	
+		$number_disabled++;
+	}
+	
+	drupal_set_message(t($number_disabled.' items disabled.'));
+}
+
+function product_status_update_restocked_submit($form, &$form_state) {
+	
+	$number_enabled = 0;
+	
+	$restocked_products = db_query('SELECT * FROM {product_status_update} JOIN {commerce_product} ON product_status_update.product_id = commerce_product.product_id WHERE out_of_stock = 0 AND status = 0 AND processed = 1')->fetchAllAssoc('product_id', PDO::FETCH_ASSOC);
+		
+	foreach ($restocked_products as $product) {
+		db_update('commerce_product')
+			->fields(array(
+					'status' => 1,
+					)
+			)
+			->condition('product_id', $product['product_id'])
+			->execute();
+	
+		$number_enabled++;
+	}
+	
+	drupal_set_message(t($number_enabled.' items re-activated.'));
 }
 
 
