@@ -289,11 +289,25 @@ function process_product_batch() {
 				->condition('sku', $product->sku)
 				->execute();
 		}
-		else {
+		else if (strpos ($result, 'no_products') !== false) {
+			$updated = db_delete('product_status_update')
+				->condition('sku', $product->sku)
+				->execute();
+		}
+		else if (strpos($result, 'product_detail' !== false) {
 			$updated = db_update('product_status_update')
 				->fields(array(
 					'out_of_stock' => 0,
 					'processed' => 1,
+					)
+				)
+				->condition('sku', $product->sku)
+				->execute();
+		}
+		else {
+			$updated = db_update('product_status_update')
+				->fields(array(
+					'processed' => 2,
 					)
 				)
 				->condition('sku', $product->sku)
