@@ -311,6 +311,14 @@ function product_status_update_outofstock_submit($form, &$form_state) {
 			)
 			->condition('product_id', $product['product_id'])
 			->execute();
+			
+			db_update('commerce_product_revision')
+			->fields(array(
+					'status' => 0,
+					)
+			)
+			->condition('product_id', $product['product_id'])
+			->execute();
 	
 		$number_disabled++;
 	}
@@ -369,6 +377,14 @@ function product_status_update_cron() {
 		for ($i = 0; $i < variable_get('psu_batches_per_run', 5); $i++) {
 			$queue->createItem($i);
 		}
+	}
+	else if (date('G')==0 && date('i')==00 && date('l')=="Monday") {
+		db_update('product_status_update')
+				->fields(array(
+					'processed' => 0,
+					)
+				)
+				->execute();
 	}
 }
 
