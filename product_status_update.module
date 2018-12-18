@@ -261,7 +261,7 @@ function product_status_update_form_submit($form, &$form_state) {
 	variable_set('psu_batches_per_run', $batches);
 	
 	if ($form_state['values']['run_now']) {
-		process_product_batch();
+		process_product_batch(1);
 	}
 	
 	drupal_set_message(t('Settings have been updated'));
@@ -318,6 +318,11 @@ function product_status_update_outofstock_submit($form, &$form_state) {
 	drupal_set_message(t($number_disabled.' items disabled.'));
 }
 
+/**
+* Add a submit handler/function to the Restocked tab
+* Re-enables products that are back in stock
+*/
+
 function product_status_update_restocked_submit($form, &$form_state) {
 	
 	$number_enabled = 0;
@@ -339,22 +344,48 @@ function product_status_update_restocked_submit($form, &$form_state) {
 	drupal_set_message(t($number_enabled.' items re-activated.'));
 }
 
+/**
+* Implements hook_cron_queue_info().
+*/
+
+function product_status_update_cron_queue_info() {
+	$queues['product_status_update'] = array(
+		'worker callback' => 'process_product_batch',
+		'time' => 300,
+		);
+	
+	return $queues;
+}
+
+/**
+* Implements hook_cron().
+*/
+
+function product_status_update_cron() {
+	$queue = DrupalQueue::get('product_status_update');
+	
+	$unprocessed_count = db_query('SELECT COUNT(product_id) FROM {product_status_update} WHERE processed = 0')->fetchField();
+	if ($unprocessed_count > 0) {
+		for ($i = 0; $i < variable_get('psu_batches_per_run', 5); $i++) {
+			$queue->createItem($i);
+		}
+	}
+}
+
 
 /**
 * Custom content function.
 *
 * Process one batch of products--look up SKU numbers on vendor site
 * and set database flags accordingly
-*
-* @return
-*   Success or failure status of run
+*   
 */
-function process_product_batch() {
+function process_product_batch($queue_item) {
 	
 	$url = "https://qgold.com//ProductListings/SearchProducts";
 	$user_agent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/70.0.3538.77 Safari/537.36";
 	
-	$limit = variable_get('psu_batch_size', 100);
+	$limit = variable_get('psu_batch_size', 20);
 	$result = db_query_range("SELECT sku FROM {product_status_update} WHERE processed = 0", 0, $limit);
 	
 	foreach ($result as $product) {
@@ -381,7 +412,7 @@ function process_product_batch() {
 				->condition('sku', $product->sku)
 				->execute();
 		}
-		else if (strpos ($result, '"InStock":0') !== false) {
+		else if (strpos ($result, '"InStock":0') !== false && strpos ($result, '"IsBuildable":true') === false) {
 			$updated = db_update('product_status_update')
 				->fields(array(
 					'out_of_stock' => 1,
@@ -419,6 +450,8 @@ function process_product_batch() {
 	
 	drupal_set_message(t('Test batch run successfully'));
 }
+
+
 
 
 
