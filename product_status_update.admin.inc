@@ -157,6 +157,45 @@ function product_status_update_restocked($form, &$form_state) {
 	return $form;
 }
 
+/**
+* Page callback: Error Log (Items unable to be processed)
+*/
+
+function product_status_update_error_log($form, &$form_state) {
+	
+	$product_list = '';
+	
+		$errors = db_select('product_status_update', 'psu')
+		->fields('psu', array('product_id', 'sku'))
+		->condition('processed', 2)
+		->execute()->fetchAllAssoc('product_id', PDO::FETCH_ASSOC);
+		
+	foreach($errors as $product) {		
+		$title = db_select('commerce_product', 'cp')
+			->fields('cp', array('title'))
+			->condition('product_id', $product['product_id'])
+			->execute()->fetchField();	
+			
+		$product_list .= $product['sku'].' '.$title.'<br />';
+		
+	}
+	
+	$product_list .= '<br />';
+	
+	$form['report'] = array(
+		'#type' => 'item',
+		'#title' => 'List of Items Unable to be Processed',
+		'#suffix' => $product_list,
+	);
+	
+	$form['submit'] = array(
+		'#type' => 'submit',
+		'#value' => 'Clear Error Log',
+	);
+	
+	return $form;
+}
+
 
 /**
 * Validate Settings form data--make sure the user has entered a positive number
@@ -215,6 +254,12 @@ function product_status_update_discontinued_submit($form, &$form_state) {
 				->condition('product_id', $product['product_id'])
 				->execute();
 		$number_deleted++;
+	}
+	
+	$empty_nodes = db_query("SELECT nid FROM {node} WHERE type = 'product_display' AND NOT EXISTS (SELECT entity_id FROM {field_data_field_product} WHERE nid = entity_id AND field_product_product_id IN (SELECT {product_id} FROM commerce_product))")->fetchAllAssoc('nid', PDO::FETCH_ASSOC);
+	
+	foreach ($empty_nodes as $node) {
+		node_delete($node['nid']);
 	}
 	
 	drupal_set_message(t($number_deleted.' items deleted.'));
@@ -278,6 +323,31 @@ function product_status_update_restocked_submit($form, &$form_state) {
 	}
 	
 	drupal_set_message(t($number_enabled.' items re-activated.'));
+}
+
+/**
+* Add a submit handler/function to the Error Log tab
+* Re-queues products with processing errors
+*/
+
+function product_status_update_error_log_submit ($form, &$form_state) {
+	
+	$errors = db_select('product_status_update', 'psu')
+	->fields('psu', array('product_id', 'sku'))
+	->condition('processed', 2)
+	->execute()->fetchAllAssoc('product_id', PDO::FETCH_ASSOC);
+	
+	foreach ($errors as $product) {
+		db_update('product_status_update')
+				->fields(array(
+					'processed' => 0,
+					)
+				)
+				->condition('sku', $product->sku)
+				->execute();
+	}
+	
+	drupal_set_message(t('Error Log Cleared'));	
 }
 
 
