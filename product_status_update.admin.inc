@@ -296,6 +296,26 @@ function product_status_update_outofstock_submit($form, &$form_state) {
 		$number_disabled++;
 	}
 	
+	$empty_nodes = db_query("SELECT nid FROM {node} WHERE type = 'product_display' AND NOT EXISTS (SELECT entity_id FROM {field_data_field_product} WHERE nid = entity_id AND field_product_product_id IN (SELECT {product_id} FROM commerce_product WHERE status = 1))")->fetchAllAssoc('nid', PDO::FETCH_ASSOC);
+	
+	foreach ($empty_nodes as $node) {
+		db_update('node')
+			->fields(array(
+					'status' => 0,
+					)
+			)
+			->condition('nid', $node['nid'])
+			->execute();
+			
+		db_update('node_revision')
+			->fields(array(
+					'status' => 0,
+					)
+			)
+			->condition('nid', $node['nid'])
+			->execute();
+	}
+	
 	drupal_set_message(t($number_disabled.' items disabled.'));
 }
 
