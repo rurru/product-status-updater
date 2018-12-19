@@ -338,6 +338,25 @@ function product_status_update_restocked_submit($form, &$form_state) {
 			)
 			->condition('product_id', $product['product_id'])
 			->execute();
+			
+		
+		$display_node = db_query('SELECT nid FROM {node} WHERE nid IN (SELECT entity_id FROM field_data_field_product WHERE field_product_product_id ='.$product[product_id].')')->fetchField();
+		
+		db_update('node')
+			->fields(array(
+					'status' => 1,
+					)
+			)
+			->condition('nid', $display_node['nid'])
+			->execute();
+			
+		db_update('node_revision')
+			->fields(array(
+					'status' => 1,
+					)
+			)
+			->condition('nid', $display_node['nid'])
+			->execute();
 	
 		$number_enabled++;
 	}
@@ -365,6 +384,7 @@ function product_status_update_error_log_submit ($form, &$form_state) {
 				)
 				->condition('sku', $product->sku)
 				->execute();
+		
 	}
 	
 	drupal_set_message(t('Error Log Cleared'));	
