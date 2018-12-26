@@ -338,16 +338,24 @@ function product_status_update_restocked_submit($form, &$form_state) {
 			)
 			->condition('product_id', $product['product_id'])
 			->execute();
+		
+		db_update('commerce_product_revision')
+			->fields(array(
+					'status' => 1,
+					)
+			)
+			->condition('product_id', $product['product_id'])
+			->execute();
 			
 		
-		$display_node = db_query('SELECT nid FROM {node} WHERE nid IN (SELECT entity_id FROM field_data_field_product WHERE field_product_product_id ='.$product[product_id].')')->fetchField();
+		$display_node = db_query('SELECT nid FROM {node} WHERE nid IN (SELECT entity_id FROM field_data_field_product WHERE field_product_product_id ='.$product['product_id'].')')->fetchField();
 		
 		db_update('node')
 			->fields(array(
 					'status' => 1,
 					)
 			)
-			->condition('nid', $display_node['nid'])
+			->condition('nid', $display_node)
 			->execute();
 			
 		db_update('node_revision')
@@ -355,7 +363,7 @@ function product_status_update_restocked_submit($form, &$form_state) {
 					'status' => 1,
 					)
 			)
-			->condition('nid', $display_node['nid'])
+			->condition('nid', $display_node)
 			->execute();
 	
 		$number_enabled++;
