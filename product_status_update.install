@@ -23,7 +23,7 @@ function product_status_update_schema() {
 				'not null' => TRUE,
 			),
 			'out_of_stock' => array(
-				'description' => 'Boolean indicating whether product is currently out of stock on vendor site and has been unpublished',
+				'description' => 'Integer indicating in-stock status. 0=Out of Stock 1=In Stock 2=Buildable 3=Buildable & Product Updated',
 				'type' => 'int',
 				'size' => 'tiny',
 				'not null' => TRUE,
