@@ -166,10 +166,11 @@ function process_product_batch($queue_item) {
 				->condition('sku', $product->sku)
 				->execute();
 		}
-		else if (strpos ($result, '"InStock":0') !== false && strpos ($result, '"IsBuildable":true') === false) {
+		else if (strpos ($result, '"InStock":0') !== false) {
+			$oos_flag = strpos($result, '"IsBuildable":true') !== false ? 2 : 1;
 			$updated = db_update('product_status_update')
 				->fields(array(
-					'out_of_stock' => 1,
+					'out_of_stock' => $oos_flag,
 					'processed' => 1,
 					)
 				)
