@@ -140,7 +140,7 @@ function process_product_batch($queue_item) {
 	$user_agent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/70.0.3538.77 Safari/537.36";
 	
 	$limit = variable_get('psu_batch_size', 20);
-	$result = db_query_range("SELECT sku FROM {product_status_update} WHERE processed = 0", 0, $limit);
+	$result = db_query_range("SELECT sku, out_of_stock FROM {product_status_update} WHERE processed = 0", 0, $limit);
 	
 	foreach ($result as $product) {
 		$post_string = 'searchTerms='.$product->sku;
@@ -166,7 +166,7 @@ function process_product_batch($queue_item) {
 				->condition('sku', $product->sku)
 				->execute();
 		}
-		else if (strpos ($result, '"InStock":0') !== false) {
+		else if (strpos ($result, '"InStock":0') !== false && $product->out_of_stock != 3) {
 			$oos_flag = strpos($result, '"IsBuildable":true') !== false ? 2 : 1;
 			$updated = db_update('product_status_update')
 				->fields(array(
