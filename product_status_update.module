@@ -206,7 +206,52 @@ function process_product_batch($queue_item) {
 	drupal_set_message(t('Test batch run successfully'));
 }
 
+/*
+	TODO: Rewrite install function to call this one
+*/
+function import_new_items() {
+	variable_set('psu_batch_size', '100');
+	variable_set('psu_batches_per_run', '5');
+	
+	$max_imported_id = db_query('SELECT MAX(product_id) FROM {product_status_update}')->fetchField();
 
+	if (!$max_imported_id) {
+		$max_imported_id = 0;
+	}
+		
+	$num_products = db_query('SELECT COUNT(DISTINCT product_id) FROM {commerce_product} WHERE product_id > '.$max_imported_id)->fetchField();
+	$cur_id = db_query('SELECT MIN(product_id) FROM {commerce_product} WHERE product_id > '.$max_imported_id)->fetchField() - 1;
+	$max_id = db_query('SELECT MAX(product_id) FROM {commerce_product} WHERE product_id > '.$max_imported_id)->fetchField();
+	
+	while ($cur_id < $max_id) {
+		$products = db_select('commerce_product', 'cp')
+			->fields('cp', array('product_id', 'sku'))
+			->condition('product_id', $cur_id, '>')
+			->range(0, 50)
+			->orderBy('product_id', 'ASC')
+			->execute()->fetchAllAssoc('product_id', PDO::FETCH_ASSOC);
+			
+		foreach ($products as $product) {
+			$pid = db_insert('product_status_update')
+				->fields(array(
+					'product_id' => $product['product_id'],
+					'sku' => $product['sku'],
+					'out_of_stock' => 0,
+					'discontinued' => 0,
+					'processed' => 0,
+					)
+				)
+				->execute();
+				
+			$cur_id = $product['product_id']; 
+		}
+	}
+	
+	return t('New Inventory Imported Successfully');
+}
+
+function delete_old_items() {
+}
 
 
 
