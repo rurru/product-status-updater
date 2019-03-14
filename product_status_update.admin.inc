@@ -38,6 +38,11 @@ function product_status_update_form($form, &$form_state) {
 		'#title' => t('Run Test Batch'),
 	);
 	
+	$form['new_inv'] = array(
+		'#type' => 'checkbox',
+		'#title' => t('Import New Items'),
+	);
+	
 	$form['submit'] = array(
 		'#type' => 'submit',
 		'#value' => 'Save Configuration',
@@ -231,6 +236,10 @@ function product_status_update_form_submit($form, &$form_state) {
 		process_product_batch(1);
 	}
 	
+	if ($form_state['values']['new_inv']) {
+		import_new_items();
+	}
+	
 	drupal_set_message(t('Settings have been updated'));
 }
 
@@ -263,6 +272,7 @@ function product_status_update_discontinued_submit($form, &$form_state) {
 	}
 	
 	drupal_set_message(t($number_deleted.' items deleted.'));
+
 }
 
 /**
@@ -273,6 +283,23 @@ function product_status_update_discontinued_submit($form, &$form_state) {
 function product_status_update_outofstock_submit($form, &$form_state) {
 	
 	$number_disabled = 0;
+	
+	$buildable_products = db_query('SELECT * FROM {product_status_update} JOIN {commerce_product} ON product_status_update.product_id = commerce_product.product_id WHERE out_of_stock = 2 AND status = 1')->fetchAllAssoc('product_id', PDO::FETCH_ASSOC);
+	
+	foreach ($buildable_products as $product) {
+		db_update('field_data_field_description')
+		->condition('entity_id', $product['product_id'])
+		->expression('field_description_value', "REPLACE(field_description_value, 'Particulars', '<em>Please Note: This is a Made Special to Order item.  Please allow 2-4 weeks for delivery.</em><p></p>Particulars')")
+		->execute();
+		
+		db_update('product_status_update')
+		->condition('product_id', $product['product_id'])
+		->fields(array(
+			'out_of_stock' => 3,
+			)
+		)
+		->execute();
+	}
 	
 	$outofstock_products = db_query('SELECT * FROM {product_status_update} JOIN {commerce_product} ON product_status_update.product_id = commerce_product.product_id WHERE out_of_stock = 1 AND status = 1')->fetchAllAssoc('product_id', PDO::FETCH_ASSOC);
 		
