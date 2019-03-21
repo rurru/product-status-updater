@@ -98,7 +98,7 @@ function product_status_update_menu() {
 function product_status_update_cron_queue_info() {
 	$queues['product_status_update'] = array(
 		'worker callback' => 'process_product_batch',
-		'time' => 300,
+		'time' => 150,
 		);
 	
 	return $queues;
@@ -117,7 +117,7 @@ function product_status_update_cron() {
 			$queue->createItem($i);
 		}
 	}
-	else if (date('G')==0 && date('i')==00 && date('l')=="Monday") {
+	else {
 		db_update('product_status_update')
 				->fields(array(
 					'processed' => 0,
