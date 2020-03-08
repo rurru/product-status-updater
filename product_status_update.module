@@ -142,8 +142,6 @@ function process_product_batch($queue_item) {
 	$limit = variable_get('psu_batch_size', 20);
 	$result = db_query_range("SELECT product_id, sku, out_of_stock FROM {product_status_update} WHERE processed = 0", 0, $limit);
 
-	$allPrices = "";
-
 	foreach ($result as $product) {
 		$post_string = 'searchTerms='.$product->sku;
 		
@@ -192,8 +190,6 @@ function process_product_batch($queue_item) {
 					))
 					->condition('entity_id', $product->product_id)
 					->execute();
-
-				$allPrices .= $product->sku."  MSRP: ".$msrp." Sale: ".$salePrice." | ";
 			}
 
 			if (strpos ($result, '"InStock":0') !== false && $product->out_of_stock != 3) {
@@ -235,7 +231,6 @@ function process_product_batch($queue_item) {
 	}
 	
 	drupal_set_message(t('Test batch run successfully'));
-	drupal_set_message(t($allPrices));
 }
 
 /*
